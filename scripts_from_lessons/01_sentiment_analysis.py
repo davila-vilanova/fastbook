@@ -6,6 +6,9 @@
 
 from fastbook import *
 from fastai.text.all import *
+import torch
+
+print("Pytorch version: ", torch.__version__)
 
 dls = TextDataLoaders.from_folder(untar_data(URLs.IMDB), valid='test')
 learn = text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy)
