@@ -2,6 +2,7 @@ from typing import Callable, Generator, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 from checks import ensure_shape
+from fastai.data.core import DataLoaders
 from fastai.data.load import DataLoader
 from model import Module
 from torch import Tensor, stack, sum, where, zeros_like
@@ -56,8 +57,9 @@ class Optimizer:
 
 
 def train_model(
-    train_data: Union[DataLoader, Tuple[Tensor, Tensor]],
-    valid_data: Union[DataLoader, Tuple[Tensor, Tensor]],  # hot encoded targets
+    data: Union[
+        DataLoaders, Tuple[Tensor, Tensor, Tensor, Tensor]
+    ],  # hot encoded targets
     model: Module,
     *,
     normalizer: Callable[[Tensor], Tensor],
@@ -74,6 +76,13 @@ def train_model(
         will return a list containing the tuple.
         """
         return data if isinstance(data, DataLoader) else [data]
+
+    print(f"isinstance(data, DataLoaders): {isinstance(data, DataLoaders)}")
+    train_data, valid_data = (
+        data
+        if isinstance(data, DataLoaders)
+        else ((data[0], data[1]), (data[2], data[3]))
+    )
 
     def train_epoch(x: Tensor, y: Tensor) -> None:
         forward_pass_calc_grad(
