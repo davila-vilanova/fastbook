@@ -73,14 +73,12 @@ class Learner:
         self,
         dataloaders: DataLoaders,
         model: Module,
-        normalizer: Callable[[Tensor], Tensor],
         opt_func: Callable[[Iterable[Tensor], float], Optimizer],
         loss_func: Callable[[Tensor, Tensor], Tensor],
         metrics: Callable[[Tensor, Tensor], Tensor],
     ):
         self.dataloaders = dataloaders
         self.model = model
-        self.normalizer = normalizer
         self.opt_func = opt_func
         self.loss_func = loss_func
         self.metrics = metrics
@@ -93,10 +91,7 @@ class Learner:
         for epoch in range(epochs):
             for batch_x, batch_y in train_data:
                 logits = self.model(batch_x)
-                preds = self.normalizer(
-                    logits
-                )  # TODO: is this built into the loss function?
-                loss = self.loss_func(preds, batch_y)
+                loss = self.loss_func(logits, batch_y)
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
