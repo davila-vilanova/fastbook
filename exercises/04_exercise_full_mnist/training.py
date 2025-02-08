@@ -77,47 +77,27 @@ def train_model(
         """
         return data if isinstance(data, DataLoader) else [data]
 
-    print(f"isinstance(data, DataLoaders): {isinstance(data, DataLoaders)}")
     train_data, valid_data = (
         data
         if isinstance(data, DataLoaders)
         else ((data[0], data[1]), (data[2], data[3]))
     )
 
-    def train_epoch(x: Tensor, y: Tensor) -> None:
-        forward_pass_calc_grad(
-            x,
-            y,
-            model,
-            normalizer,
-            loss_function,
-        )
-        optimizer.step()
-        optimizer.zero_grad()
-
     for epoch in range(epochs):
         for batch_x, batch_y in data_iterable(train_data):
-            train_epoch(batch_x, batch_y)
+            logits = model(batch_x)
+            preds = normalizer(logits)  # TODO: is this built into the loss function?
+            loss = loss_function(preds, batch_y)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
 
-        accs = [calculate_accuracy(model(x), y) for x, y in data_iterable(valid_data)]
+        epoch_accuracies = [
+            calculate_accuracy(model(x), y) for x, y in data_iterable(valid_data)
+        ]
         # TODO: will this have affected the parameter grads? Significantly?
 
-        yield epoch, stack(accs).mean().item()
-
-
-# Returns average loss
-def forward_pass_calc_grad(
-    batch_x: Tensor,
-    batch_y: Tensor,
-    model: Module,
-    normalize: Callable[[Tensor], Tensor],
-    loss_function: Callable[[Tensor, Tensor], Tensor],
-) -> float:
-    logits = model(batch_x)
-    preds = normalize(logits)  # TODO: is this built into the loss function?
-    loss = loss_function(preds, batch_y)
-    loss.backward()
-    return loss.item()
+        yield epoch, stack(epoch_accuracies).mean().item()
 
 
 def plot_accuracies(accuracies: Sequence[float]) -> None:
