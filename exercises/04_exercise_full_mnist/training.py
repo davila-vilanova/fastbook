@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from checks import ensure_shape
 from fastai.data.load import DataLoader
 from model import Module
-from torch import Tensor, sum, where, zeros_like
+from torch import Tensor, stack, sum, where, zeros_like
 
 
 def calculate_accuracy(preds: Tensor, targets: Tensor) -> Tensor:
@@ -57,7 +57,7 @@ class Optimizer:
 
 def train_model(
     train_data: Union[DataLoader, Tuple[Tensor, Tensor]],
-    valid_data: Tuple[Tensor, Tensor],
+    valid_data: Union[DataLoader, Tuple[Tensor, Tensor]],  # hot encoded targets
     model: Module,
     *,
     normalizer: Callable[[Tensor], Tensor],
@@ -65,6 +65,16 @@ def train_model(
     optimizer: Optimizer,
     epochs: int,
 ) -> Generator[Tuple[int, float], None, None]:
+    def data_iterable(
+        data: Union[DataLoader, Tuple[Tensor, Tensor]],
+    ) -> Sequence[Tuple[Tensor, Tensor]]:
+        """Returns a sequence of tuples of tensors, each tuple containing a batch of
+        inputs and a batch of targets.
+        If passed a DataLoader, it will return the input value. If passed a tuple, it
+        will return a list containing the tuple.
+        """
+        return data if isinstance(data, DataLoader) else [data]
+
     def train_epoch(x: Tensor, y: Tensor) -> None:
         forward_pass_calc_grad(
             x,
@@ -77,14 +87,13 @@ def train_model(
         optimizer.zero_grad()
 
     for epoch in range(epochs):
-        if isinstance(train_data, DataLoader):
-            for batch_x, batch_y in train_data:
-                train_epoch(batch_x, batch_y)
-        else:
-            train_epoch(train_data[0], train_data[1])
+        for batch_x, batch_y in data_iterable(train_data):
+            train_epoch(batch_x, batch_y)
 
-        yield epoch, calculate_accuracy(model(valid_data[0]), valid_data[1]).item()
+        accs = [calculate_accuracy(model(x), y) for x, y in data_iterable(valid_data)]
         # TODO: will this have affected the parameter grads? Significantly?
+
+        yield epoch, stack(accs).mean().item()
 
 
 # Returns average loss
@@ -96,7 +105,7 @@ def forward_pass_calc_grad(
     loss_function: Callable[[Tensor, Tensor], Tensor],
 ) -> float:
     logits = model(batch_x)
-    preds = normalize(logits)
+    preds = normalize(logits)  # TODO: is this built into the loss function?
     loss = loss_function(preds, batch_y)
     loss.backward()
     return loss.item()

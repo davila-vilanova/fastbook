@@ -20,6 +20,7 @@ class DataSplit(Enum):
 
 
 IMAGE_SHAPE: Final[Tuple[int, int]] = (28, 28)
+NUM_CLASSES: Final[int] = 10
 
 
 def load_mnist_data() -> Path:
