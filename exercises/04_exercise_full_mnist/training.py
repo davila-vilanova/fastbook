@@ -1,9 +1,8 @@
-from typing import Callable, Generator, Sequence, Tuple, Union
+from typing import Callable, Generator, Iterable, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 from checks import ensure_shape
 from fastai.data.core import DataLoaders
-from fastai.data.load import DataLoader
 from model import Module
 from torch import Tensor, stack, sum, where, zeros_like
 
@@ -41,7 +40,7 @@ def calculate_loss(preds: Tensor, targets: Tensor) -> Tensor:
 
 
 class Optimizer:
-    def __init__(self, learning_rate: float, params: Sequence[Tensor]):
+    def __init__(self, params: Sequence[Tensor], learning_rate: float):
         self.learning_rate = learning_rate
         self.params = params
 
@@ -56,48 +55,8 @@ class Optimizer:
             p.grad.zero_()  # or set to None
 
 
-def train_model(
-    data: Union[
-        DataLoaders, Tuple[Tensor, Tensor, Tensor, Tensor]
-    ],  # hot encoded targets
-    model: Module,
-    *,
-    normalizer: Callable[[Tensor], Tensor],
-    loss_function: Callable[[Tensor, Tensor], Tensor],
-    optimizer: Optimizer,
-    epochs: int,
-) -> Generator[Tuple[int, float], None, None]:
-    def data_iterable(
-        data: Union[DataLoader, Tuple[Tensor, Tensor]],
-    ) -> Sequence[Tuple[Tensor, Tensor]]:
-        """Returns a sequence of tuples of tensors, each tuple containing a batch of
-        inputs and a batch of targets.
-        If passed a DataLoader, it will return the input value. If passed a tuple, it
-        will return a list containing the tuple.
-        """
-        return data if isinstance(data, DataLoader) else [data]
-
-    train_data, valid_data = (
-        data
-        if isinstance(data, DataLoaders)
-        else ((data[0], data[1]), (data[2], data[3]))
-    )
-
-    for epoch in range(epochs):
-        for batch_x, batch_y in data_iterable(train_data):
-            logits = model(batch_x)
-            preds = normalizer(logits)  # TODO: is this built into the loss function?
-            loss = loss_function(preds, batch_y)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-        epoch_accuracies = [
-            calculate_accuracy(model(x), y) for x, y in data_iterable(valid_data)
-        ]
-        # TODO: will this have affected the parameter grads? Significantly?
-
-        yield epoch, stack(epoch_accuracies).mean().item()
+def make_optimizer(params: Sequence[Tensor], learning_rate: float) -> Optimizer:
+    return Optimizer(params, learning_rate)
 
 
 def plot_accuracies(accuracies: Sequence[float]) -> None:
@@ -107,3 +66,44 @@ def plot_accuracies(accuracies: Sequence[float]) -> None:
     plt.ylim(0, 1)
     plt.title("Training Accuracy Over Epochs")
     plt.show()
+
+
+class Learner:
+    def __init__(
+        self,
+        dataloaders: DataLoaders,
+        model: Module,
+        normalizer: Callable[[Tensor], Tensor],
+        opt_func: Callable[[Iterable[Tensor], float], Optimizer],
+        loss_func: Callable[[Tensor, Tensor], Tensor],
+        metrics: Callable[[Tensor, Tensor], Tensor],
+    ):
+        self.dataloaders = dataloaders
+        self.model = model
+        self.normalizer = normalizer
+        self.opt_func = opt_func
+        self.loss_func = loss_func
+        self.metrics = metrics
+
+    def fit(self, epochs: int, lr: float) -> Generator[Tuple[int, float], None, None]:
+        train_data, valid_data = self.dataloaders
+
+        optimizer = self.opt_func(self.model.params(), lr)
+
+        for epoch in range(epochs):
+            for batch_x, batch_y in train_data:
+                logits = self.model(batch_x)
+                preds = self.normalizer(
+                    logits
+                )  # TODO: is this built into the loss function?
+                loss = self.loss_func(preds, batch_y)
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+            epoch_accuracies = [
+                calculate_accuracy(self.model(x), y) for x, y in valid_data
+            ]
+            # TODO: will this have affected the parameter grads? Significantly?
+
+            yield epoch, stack(epoch_accuracies).mean().item()
