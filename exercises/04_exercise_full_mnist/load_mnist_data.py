@@ -95,9 +95,8 @@ def labeled_data(
     base_path: Path, datasplit: DataSplit, device: device
 ) -> Tuple[Tensor, Tensor]:
     """Returns a tuple of tensors:
-    - the first contains all the images in the
-    dataset for the specified datasplit, stacked, with pixel values scaled, and
-    converted to 1D tensors,
+    - the first contains all the images in the dataset for the specified
+    datasplit, stacked, with pixel values scaled, and converted to 1D tensors,
     - the second contains the corresponding labels as a vector of integers."""
 
     _all_digits = range(0, 10)
