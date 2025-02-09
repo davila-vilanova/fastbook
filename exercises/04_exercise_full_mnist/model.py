@@ -6,6 +6,7 @@ from itertools import chain
 from typing import Callable, Sequence
 from checks import ensure_shape
 from fastai.torch_core import tensor
+from normalize import normalize_log_softmax, normalize_softmax
 
 
 def init_params(
@@ -22,9 +23,8 @@ class Module(ABC):  # e.g. a model or layer
     def run(self, input: Tensor) -> Tensor:
         pass
 
-    @abstractmethod
     def params(self) -> Sequence[Tensor]:
-        pass
+        return []
 
     def __call__(self, *args, **kwargs):  # type: ignore
         return self.run(*args, **kwargs)
@@ -70,8 +70,15 @@ class ReLU(Module):
     def run(self, input: Tensor) -> Tensor:
         return max(input, tensor(0.0, device=self.device))  # type: ignore
 
-    def params(self) -> Sequence[Tensor]:
-        return []
+
+class Softmax(Module):
+    def run(self, input: Tensor) -> Tensor:
+        return normalize_softmax(input)
+
+
+class LogSoftmax(Module):
+    def run(self, input: Tensor) -> Tensor:
+        return normalize_log_softmax(input)
 
 
 class Sequential(Module):
