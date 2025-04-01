@@ -1,3 +1,5 @@
+> David's note: On the branch [`my_wrestling`](https://github.com/davila-vilanova/fastbook/tree/my_wrestling) one can find my full MNIST digit classification model implementation and some notebooks exploring concepts was never intended to be for public consumption (of for consumption by anyone other than my present and future self), but I just published them anyway because yolo.
+
 [English](./README.md) / [Spanish](./README_es.md) / [Korean](./README_ko.md) / [Chinese](./README_zh.md) / [Bengali](./README_bn.md) / [Indonesian](./README_id.md) / [Italian](./README_it.md) / [Portuguese](./README_pt.md) / [Vietnamese](./README_vn.md) / [Japanese](./README_ja.md)
 
 # The fastai book
